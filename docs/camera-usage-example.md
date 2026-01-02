@@ -28,8 +28,11 @@ Camera camera;
 
 ```cpp
 void setup() {
-  camera.begin(115200);  // Initialize with 115200 baud rate
-  delay(1000);           // Wait for ESP32-CAM to be ready
+  // Initialize with default settings (115200 baud, 1500ms boot delay)
+  camera.begin();
+  
+  // Or customize the initialization
+  // camera.begin(115200, 2000);  // 115200 baud, 2 second boot delay
 }
 ```
 
@@ -39,11 +42,10 @@ void setup() {
 void loop() {
   // Capture a photo
   camera.capturePhoto();
-  delay(100);
   
-  // Read response from ESP32-CAM
-  if (camera.isDataAvailable()) {
-    String response = camera.readResponse();
+  // Read response from ESP32-CAM (with 1 second timeout)
+  String response = camera.readResponse(1000);
+  if (response.length() > 0) {
     // Process response...
   }
   
@@ -67,7 +69,7 @@ UltrasonicSensor ultrasonic;
 
 void setup() {
   // Initialize camera (this also initializes Serial)
-  camera.begin(115200);
+  camera.begin();
   
   // Initialize other components
   rgb.begin();
@@ -85,11 +87,10 @@ void loop() {
     // Obstacle detected - capture photo and set LED to red
     rgb.setRed();
     camera.capturePhoto();
-    delay(100);
     
     // Wait for confirmation from ESP32-CAM
-    if (camera.isDataAvailable()) {
-      String response = camera.readResponse();
+    String response = camera.readResponse(500);
+    if (response.length() > 0) {
       // Process response...
     }
     
@@ -105,13 +106,13 @@ void loop() {
 
 ### Initialization
 
-- `begin(unsigned long baud_rate = 115200)` - Initialize UART communication
+- `begin(unsigned long baud_rate = 115200, uint16_t init_delay_ms = 1500)` - Initialize UART communication with configurable baud rate and boot delay
 
 ### Communication
 
 - `sendCommand(const String& command)` - Send a custom command string
 - `isDataAvailable()` - Check if data is available from ESP32-CAM
-- `readResponse()` - Read a line of text response
+- `readResponse(uint16_t timeout_ms = 1000)` - Read a line of text response with timeout
 - `readBytes(uint8_t* buffer, size_t length)` - Read raw bytes
 - `flush()` - Flush the serial buffer
 
@@ -124,7 +125,7 @@ These commands send predefined strings to the ESP32-CAM. The actual behavior dep
 - `stopStream()` - Stop video streaming (sends "STREAM_STOP")
 - `requestStatus()` - Request camera status (sends "STATUS")
 - `setResolution(const String& resolution)` - Set resolution (sends "RES_<resolution>")
-- `setQuality(uint8_t quality)` - Set JPEG quality 0-63 (sends "QUALITY_<value>")
+- `setQuality(uint8_t quality)` - Set JPEG quality 0-63, values >63 are clamped (sends "QUALITY_<value>")
 - `setFlash(bool enable)` - Enable/disable flash LED (sends "FLASH_ON" or "FLASH_OFF")
 
 ## Custom Commands

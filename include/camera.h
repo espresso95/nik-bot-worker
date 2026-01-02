@@ -12,9 +12,10 @@ class Camera {
 
   // Initialize UART communication with ESP32-CAM
   // baud_rate: Communication speed (default 115200)
-  void begin(unsigned long baud_rate = 115200) {
+  // init_delay_ms: Time to wait for ESP32-CAM to boot (default 1500ms)
+  void begin(unsigned long baud_rate = 115200, uint16_t init_delay_ms = 1500) {
     Serial.begin(baud_rate);
-    delay(100);  // Give ESP32-CAM time to initialize
+    delay(init_delay_ms);  // Give ESP32-CAM time to initialize (typically 1-2 seconds)
   }
 
   // Send a command string to the ESP32-CAM
@@ -28,12 +29,22 @@ class Camera {
   }
 
   // Read a line of response from ESP32-CAM
-  // Returns empty string if no complete line is available
-  String readResponse() {
-    if (!Serial.available()) {
-      return "";
+  // timeout_ms: Maximum time to wait for a complete line (default 1000ms)
+  // Returns empty string if no complete line is received within timeout
+  String readResponse(uint16_t timeout_ms = 1000) {
+    unsigned long start = millis();
+    String response = "";
+    
+    while (millis() - start < timeout_ms) {
+      if (Serial.available()) {
+        char c = Serial.read();
+        if (c == '\n') {
+          return response;
+        }
+        response += c;
+      }
     }
-    return Serial.readStringUntil('\n');
+    return response;  // Return partial data or empty string on timeout
   }
 
   // Read raw bytes from ESP32-CAM
@@ -48,7 +59,7 @@ class Camera {
   }
 
   // Common camera commands (customize based on ESP32-CAM firmware)
-  
+
   // Request to capture a photo
   void capturePhoto() {
     sendCommand("CAPTURE");
@@ -76,8 +87,11 @@ class Camera {
   }
 
   // Set camera quality (JPEG quality)
-  // quality: 0-63 (lower is higher quality)
+  // quality: 0-63 (lower is higher quality, values >63 will be clamped)
   void setQuality(uint8_t quality) {
+    if (quality > 63) {
+      quality = 63;  // Clamp to valid range
+    }
     sendCommand("QUALITY_" + String(quality));
   }
 
