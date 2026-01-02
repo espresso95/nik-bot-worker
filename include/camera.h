@@ -34,6 +34,7 @@ class Camera {
   String readResponse(uint16_t timeout_ms = 1000) {
     unsigned long start = millis();
     String response = "";
+    response.reserve(64);  // Pre-allocate to reduce memory fragmentation
     
     while (millis() - start < timeout_ms) {
       if (Serial.available()) {
@@ -42,6 +43,8 @@ class Camera {
           return response;
         }
         response += c;
+      } else {
+        delay(1);  // Small delay to avoid busy-wait
       }
     }
     return response;  // Return partial data or empty string on timeout
