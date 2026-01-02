@@ -85,12 +85,13 @@ class WifiBridge {
     if (serial == nullptr) return false;
     
     // Validate input lengths to prevent buffer overflow
+    // Command format: "WIFI_CONNECT:ssid,password" (15 chars overhead + ssid + password)
     if (strlen(ssid) > 32 || strlen(password) > 63) {
       return false;  // Invalid WiFi credentials length
     }
     
     // Format: WIFI_CONNECT:ssid,password
-    char cmd[128];
+    char cmd[128];  // 15 + 32 + 63 + null = 111 bytes minimum
     snprintf(cmd, sizeof(cmd), "WIFI_CONNECT:%s,%s", ssid, password);
     
     if (sendCommand(cmd, timeout_ms)) {
@@ -147,11 +148,12 @@ class WifiBridge {
     if (serial == nullptr || !connected_) return false;
     
     // Validate combined length to prevent buffer overflow
-    if (strlen(url) + strlen(data) > 300) {
-      return false;  // Combined URL and data too long
+    // Command format: "HTTP_POST:url|data" (11 chars overhead + url + data)
+    if (strlen(url) + strlen(data) + 12 > 384) {
+      return false;  // Combined URL and data too long for buffer
     }
     
-    char cmd[384];
+    char cmd[384];  // 11 + url + data + null terminator
     snprintf(cmd, sizeof(cmd), "HTTP_POST:%s|%s", url, data);
     
     if (sendCommand(cmd, timeout_ms)) {
@@ -217,15 +219,10 @@ class WifiBridge {
     unsigned long start = millis();
     
     while (millis() - start < timeout_ms) {
-      unsigned long elapsed = millis() - start;
-      uint16_t remaining_timeout = (elapsed < timeout_ms) ? (timeout_ms - elapsed) : 0;
-      
-      if (remaining_timeout > 0 && readLine(buffer, sizeof(buffer), remaining_timeout)) {
+      if (readLine(buffer, sizeof(buffer), timeout_ms)) {
         if (strstr(buffer, expected) != nullptr) {
           return true;
         }
-      } else {
-        break;  // Timeout reached
       }
     }
     return false;
